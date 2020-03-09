@@ -1,5 +1,5 @@
 <template>
-    <div style="width: 400px; height: 800px;">
+    <div style="width: 700px; height: 800px;">
         <div id = 'cellTest' style="textAlign: left">
             Column : {{ this.selectedColumn }}<br/>
             Row : {{ this.selectedRow }}<br/>
@@ -18,10 +18,19 @@
             :suppressRowClickSelection="true"
             :rowMultiSelectWithClick="true"
             @cell-focused="cellFocused()"
+            @cell-clicked="cellClicked()"
             
             :enterMovesDownAfterEdit="true"
             :enterMovesDown="true">
         </ag-grid-vue>
+        <div style="textAlign: left">
+            Data :<br/>
+            <ul>
+                <li v-for="item in this.selectedData" v-bind:key="item">
+                    {{ item }}
+                </li>
+            </ul>
+        </div>
     </div>
 </template>
 
@@ -39,6 +48,7 @@
                 defaultColDef: null,
                 selectedColumn: null,
                 selectedRow: null,
+                selectedData: [],
             }
         },
         components: {
@@ -46,26 +56,69 @@
         },
         methods:{
             cellFocused(){
-                if(this.gridApi.getFocusedCell().column.colId === 'X'){
-                    var selectedRows = this.gridApi.getSelectedNodes();
+                var rowIndex = this.gridApi.getFocusedCell().rowIndex
 
-                    selectedRows.forEach(element => {
-                        if(element.data.colType != 'int'){
-                            element.setSelected(false);
-                        }
-                    });
+                var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
+
+                if(row.selected == true){
+                    row.setSelected(false);
+                    row.data.X = 0;
+                    row.data.Y = 0;
+                }
+                
+                else{
+                    if(this.gridApi.getFocusedCell().column.colId === 'X'){
+                        var selectedRows = this.gridApi.getSelectedNodes();
+                        selectedRows.forEach(element => {
+                            if(element.data.colType != 'int'){
+                                element.setSelected(false);
+                                element.data.X = 0;
+                                element.data.Y = 0;
+                            }
+                        });
+                    }
+
+                    row.setSelected(true);
                 }
 
                 if(this.gridApi.getFocusedCell().column.colId === 'Y'){
-                    var rowIndex = this.gridApi.getFocusedCell().rowIndex
-
-                    var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
-
-                    row.setDataValue('count',row.data.count + rowIndex + 1)
+                    row.setDataValue('count',Number(row.data.count) + (rowIndex + 1))
                 }
 
                 this.selectedColumn = this.gridApi.getFocusedCell().column.colId;
                 this.selectedRow = this.gridApi.getFocusedCell().rowIndex;
+                var selectedRows = this.gridApi.getSelectedNodes();
+
+                this.selectedData=[];
+                var temp = []
+                selectedRows.forEach(element => {
+                    if(element.data.colType == "cha" || element.data.colType == "fac"){
+                        element.data.X = 1;
+                    }
+
+                    else if(element.data.colType == "int"){
+                        element.data.Y = 1;
+                    }
+
+                    else{
+                        element.data.X = 1;
+                        element.data.Y = 1;
+                    }
+
+                    temp.push(element.data)
+
+                    this.selectedData.push(temp)
+
+                    temp = [];
+
+                    this.gridApi.refreshCells();
+                })
+            },
+
+            cellClikced(){
+                var rowIndex = this.gridApi.getFocusedCell().rowIndex
+
+                var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
             },
 
             removeSelectedRows(){
@@ -123,19 +176,19 @@
             ];
 
             this.rowData = [
-                {colName:'VI', colType:'int', X:'', Y:'', count:0},
-                {colName:'CO', colType:'int', X:'', Y:'', count:0},
-                {colName:'AB', colType:'fac', X:'', Y:''},
-                {colName:'FA', colType:'int', X:'', Y:'', count:0},
-                {colName:'DI', colType:'fac', X:'', Y:''},
-                {colName:'FN', colType:'cha', X:'', Y:''},
-                {colName:'FS', colType:'cha', X:'', Y:''},
-                {colName:'FC', colType:'cha', X:'', Y:''},
-                {colName:'FZ', colType:'int', X:'', Y:''},
-                {colName:'FS', colType:'int', X:'', Y:''},
-                {colName:'CO', colType:'fac', X:'', Y:''},
-                {colName:'DI', colType:'fac', X:'', Y:''},
-                {colName:'CH', colType:'cha', X:'', Y:''}
+                {colName:'VI', colType:'int', X:'0', Y:'0', count:0},
+                {colName:'CO', colType:'int', X:'0', Y:'0', count:0},
+                {colName:'AB', colType:'fac', X:'0', Y:'0', count:0},
+                {colName:'FA', colType:'int', X:'0', Y:'0', count:0},
+                {colName:'DI', colType:'fac', X:'0', Y:'0', count:0},
+                {colName:'FN', colType:'cha', X:'0', Y:'0', count:0},
+                {colName:'FS', colType:'cha', X:'0', Y:'0', count:0},
+                {colName:'FC', colType:'cha', X:'0', Y:'0', count:0},
+                {colName:'FZ', colType:'int', X:'0', Y:'0', count:0},
+                {colName:'FS', colType:'int', X:'0', Y:'0', count:0},
+                {colName:'CO', colType:'fac', X:'0', Y:'0', count:0},
+                {colName:'DI', colType:'fac', X:'0', Y:'0', count:0},
+                {colName:'CH', colType:'cha', X:'0', Y:'0', count:0}
             ];
 
             this.defaultColDef = {
