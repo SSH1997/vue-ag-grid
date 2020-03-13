@@ -46,6 +46,8 @@
                 selectedColumn: null,
                 selectedRow: null,
                 selectedData: [],
+                shiftStart:null,
+                shiftEnd:null,
             }
         },
 
@@ -87,7 +89,7 @@
                 var rowIndex = this.gridApi.getFocusedCell().rowIndex
 
                 var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
-
+                
                 row.setSelected(true);
             }, // 시각적 효과를 위해 cell에 포커스 되면 row가 선택되게 (흰색 -> 파란색)
 
@@ -130,6 +132,10 @@
                         select.appendChild(option)
                     }
 
+                    select.addEventListener('change',function(event){
+                        console.log(select.value)
+                    })
+
                     select.id = "colType" + params.rowIndex;
 
                     return select
@@ -159,6 +165,27 @@
                     input.type = "checkbox"
                     input.checked = false;
                     input.id = "Y" + params.rowIndex;
+                    window.localStorage.clear();
+                    input.addEventListener('click', function (event) {
+                        if(event.shiftKey){
+                            if(window.localStorage.getItem('shiftStart') == null){
+                                window.localStorage.setItem('shiftStart', params.rowIndex)
+                            }
+                            else{
+                                window.localStorage.setItem('shiftEnd', params.rowIndex)
+
+                                if(window.localStorage.getItem('shiftStart') > params.rowIndex){
+                                    window.localStorage.setItem('shiftEnd', window.localStorage.getItem('shiftStart'))    
+                                    window.localStorage.setItem('shiftStart', params.rowIndex)
+                                }
+
+                                for(var i = Number(window.localStorage.getItem('shiftStart')); i <= Number(window.localStorage.getItem('shiftEnd')); i++){
+                                    document.getElementById("Y"+i).checked = true;
+                                }
+                                window.localStorage.clear();
+                            }
+                        }
+                    })
 
                     return input
                 }}
