@@ -1,10 +1,8 @@
 <template>
     <div style="width: 700px; height: 800px;">
+        <div ref="menuButton" class="customHeaderMenuButton"></div>
         <div id = 'cellTest' style="textAlign: left">
-            Column : {{ this.selectedColumn }}<br/>
-            Row : {{ this.selectedRow }}<br/>
-            <button v-on:click="setColumnVisible(false)">컬럼 삭제</button>
-            <button v-on:click="dataExtract()">데이터 확인</button>
+            <button v-on:click="dataSave()">데이터 저장</button>
         </div>
         <ag-grid-vue style="width: 100%; height: 50%;"
             class="ag-theme-balham"
@@ -21,33 +19,28 @@
             :enterMovesDownAfterEdit="true"
             :enterMovesDown="true">
         </ag-grid-vue>
-        <div style="textAlign: left">
-            Data :<br/>
-            <ul>
-                <li v-for="item in this.selectedData" v-bind:key="item">
-                    {{ item }}
-                </li>
-            </ul>
-        </div>
     </div>
 </template>
 
 <script>
     import {AgGridVue} from "ag-grid-vue";
+    import rowDataSet from "../assets/rowData.json"
+    import tagSet from "../assets/tagSet.json"
+    import { EventBus } from './event-bus.js'
 
     export default {
         name: 'defaultGrid',
+        props: ['tabId'],
         data(){
             return {
                 gridOptions: null,
                 columnDefs: null,
-                rowData: null,
                 gridApi: null,
-                selectedColumn: null,
-                selectedRow: null,
-                selectedData: [],
                 shiftStart:null,
                 shiftEnd:null,
+
+                checkedDepVar: null,
+                checkedIndepVar: new Array()
             }
         },
 
@@ -55,64 +48,153 @@
             AgGridVue
         },
 
+        created () {
+            EventBus.$on("getOptions", () => {
+                console.log("received")
+
+                this.getOptionChecked()
+
+                let payload = {
+                    tabId: this.tabId,
+                    indepVar: this.checkedIndepVar,
+                    depVar: this.checkedDepVar
+                }
+
+                EventBus.$emit("returnOptions", payload)
+            })
+        },
+
         methods:{
-            dataExtract(){
-                this.selectedData = []; // 데이터 배열 초기화
-
-                for(var i = 0; i < this.gridApi.getLastDisplayedRow(); i++){ // 보여지는 로우의 끝까지 검사
-                    var row = this.gridApi.getDisplayedRowAtIndex(i);
-
-                    if(document.getElementById("X"+i).checked == true && document.getElementById("Y"+i).checked == true){
-                        row.data.X = 1;
-                        row.data.Y = 1;
-                    } // 둘다 체크 되어 있으면 x : 1 / y : 1
-                    else if(document.getElementById("X"+i).checked == true){
-                        row.data.X = 1;
-                        row.data.Y = 0;
-                    }
-                    else if(document.getElementById("Y"+i).checked == true){
-                        row.data.X = 0;
-                        row.data.Y = 1;
+            dataSave(){
+                /* for(var i = 0; i < this.gridApi.getLastDisplayedRow(); i++){ // 보여지는 로우의 끝까지 검사
+                    if(document.getElementById("X"+i).checked){
+                        this.rowData[i].X = 1
                     }
                     else{
-                        row.data.X = 0;
-                        row.data.Y = 0;
-                        continue;
-                    } // 체크 안 되어 있으면 0, 0 및 데이터 배열에 추가 안함
+                        this.rowData[i].X = 0
+                    }
 
-                    row.data.colType = document.getElementById("colType" + i).value
-                    this.selectedData.push(row.data); // 데이터 배열에 추가
-                }
+                    if(document.getElementById("Y"+i).checked){
+                        this.rowData[i].Y = 1
+                    }
+                    else{
+                        this.rowData[i].Y = 0
+                    }
+
+                    this.rowData[i].colType = document.getElementById('colType' + i).value
+                } */
             },
             
-            cellFocused(){
+            cellFocused(){  
                 var rowIndex = this.gridApi.getFocusedCell().rowIndex
 
                 var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
-                
+
+                var selectedRows = this.gridApi.getSelectedNodes();
+
+                selectedRows.forEach(element => {
+                    element.setSelected(false);   
+                });
+
                 row.setSelected(true);
             }, // 시각적 효과를 위해 cell에 포커스 되면 row가 선택되게 (흰색 -> 파란색)
 
             cellMouseOut(){
-                var rowIndex = this.gridApi.getFocusedCell().rowIndex
-
-                var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
-
-                row.setSelected(false);
+                if(this.gridApi.getFocusedCell() != null){
+                     var rowIndex = this.gridApi.getFocusedCell().rowIndex
+                
+                    var row = this.gridApi.getDisplayedRowAtIndex(rowIndex);
+                
+                    row.setSelected(false);
+                }
             }, // 마우스를 cell에서 빼면 선택 해제 (파란색 -> 흰색)
-
-            setColumnVisible(params){
-                this.gridColumnApi.setColumnVisible(this.gridApi.getFocusedCell().column.colId,params)
-            }, // 컬럼 삭제
             
             onGridReady(params) {
                 params.api.sizeColumnsToFit();
+                for(var i = 0; i < this.gridApi.getLastDisplayedRow(); i++){ // 보여지는 로우의 끝까지 검사
+                    var row = this.gridApi.getDisplayedRowAtIndex(i);
+                    if(row.data.X == 1){
+                        document.getElementById("X"+i).checked = true;
+                    }
+                    if(row.data.Y == 1){
+                        document.getElementById("Y"+i).checked = true;
+                    }
+                }
+
+                this.insertTags()
+            },
+
+            insertTags(){
+                for(var i = 0; i < this.rowData.length; i++){
+                    this.tags.forEach(element => {
+                        if(this.rowData[i].colName == element.target){
+                            document.getElementById('tag' + i).innerHTML = element.tag
+                        }
+                    });
+                }
+                console.log(document.getElementById('tag0'))
+            },
+
+            getOptionChecked () {
+                this.checkedDepVar = null;
+                this.checkedIndepVar = [];
+                
+                if(window.localStorage.getItem("X" + this.tabId) != null){
+                    var tempX = window.localStorage.getItem("X" + this.tabId).split(",")
+                    var tempY = window.localStorage.getItem("Y" + this.tabId).split(",")
+
+                    for(var i=0; i<this.rowData.length; i++) {
+                        if(tempX[i] == "1"){
+                            this.checkedDepVar = this.rowData[i].colName
+                        }
+                        if(tempY[i] == "1"){
+                            this.checkedIndepVar.push(this.rowData[i].colName)
+                        }
+                    }
+                }
             }
         },
+
         beforeMount() {
             this.gridOptions = {};
+            this.tags = [
+                {
+                    target:'VI',
+                    tag:['tag1','tag2','tag3']
+                },
+                {
+                    target:'AB',
+                    tag:['tag3','tag4','tag5']
+                },
+                {
+                    target:'FN',
+                    tag:['tag6','tag7','tag8']
+                },
+                {
+                    target:'FS',
+                    tag:['tag9','tag0','tag1']
+                },
+            ]
             this.columnDefs = [
-                {headerName: '컬럼명', field: 'colName'},
+                {headerName: '컬럼명', field: 'colName', cellRenderer: function(params){
+                    var cellDiv = document.createElement("div")
+                    var dataDiv = document.createElement("div")
+                    var tagDiv = document.createElement("div")
+                    
+                    //cellDiv.setAttribute("style","layout:null;")
+
+                    dataDiv.innerHTML = params.value
+                    dataDiv.setAttribute("style","position:absolute; left:50%; transform:translate(-50%) width:15px; float:left")
+
+                    tagDiv.setAttribute("id","tag" + params.rowIndex)
+
+                    tagDiv.setAttribute("style", 'position:absolute; right:2%; background-color:lightgray;float:left')
+                    
+                    cellDiv.appendChild(dataDiv)
+                    cellDiv.appendChild(tagDiv)
+
+                    return cellDiv
+                }},
                 {headerName: '자료형식', field: 'colType', cellRenderer: function(params){
                     var select = document.createElement("select") // select 생성
 
@@ -131,10 +213,6 @@
 
                         select.appendChild(option)
                     }
-
-                    select.addEventListener('change',function(event){
-                        console.log(select.value)
-                    })
 
                     select.id = "colType" + params.rowIndex;
 
@@ -165,7 +243,8 @@
                     input.type = "checkbox"
                     input.checked = false;
                     input.id = "Y" + params.rowIndex;
-                    window.localStorage.clear();
+                    window.localStorage.removeItem('shiftStart');
+                    window.localStorage.removeItem('shiftEnd');
                     input.addEventListener('click', function (event) {
                         if(event.shiftKey){
                             if(window.localStorage.getItem('shiftStart') == null){
@@ -182,7 +261,8 @@
                                 for(var i = Number(window.localStorage.getItem('shiftStart')); i <= Number(window.localStorage.getItem('shiftEnd')); i++){
                                     document.getElementById("Y"+i).checked = true;
                                 }
-                                window.localStorage.clear();
+                                window.localStorage.removeItem('shiftStart');
+                                window.localStorage.removeItem('shiftEnd');
                             }
                         }
                     })
@@ -190,23 +270,8 @@
                     return input
                 }}
             ];
-
-            this.rowData = [
-                {colName:'VI', colType:'int', X:'0', Y:'0'},
-                {colName:'CO', colType:'int', X:'0', Y:'0'},
-                {colName:'AB', colType:'fac', X:'0', Y:'0'},
-                {colName:'FA', colType:'int', X:'0', Y:'0'},
-                {colName:'DI', colType:'fac', X:'0', Y:'0'},
-                {colName:'FN', colType:'cha', X:'0', Y:'0'},
-                {colName:'FS', colType:'cha', X:'0', Y:'0'},
-                {colName:'FC', colType:'cha', X:'0', Y:'0'},
-                {colName:'FZ', colType:'int', X:'0', Y:'0'},
-                {colName:'FS', colType:'int', X:'0', Y:'0'},
-                {colName:'CO', colType:'fac', X:'0', Y:'0'},
-                {colName:'DI', colType:'fac', X:'0', Y:'0'},
-                {colName:'CH', colType:'cha', X:'0', Y:'0'}
-            ];
         },
+
         mounted(){
             this.gridApi = this.gridOptions.api;
             var allColumnIds = [];
@@ -215,6 +280,18 @@
                 allColumnIds.push(column.colId);
             });
             this.gridColumnApi.autoSizeColumns(allColumnIds, false);
+        },
+        beforeDestroy(){
+            window.localStorage.clear()
+        },
+        computed:{
+            rowData() {
+                return rowDataSet.rowData 
+            },
+
+            tags(){
+                return tagSet.tagSet
+            }
         }
     }
 </script>
